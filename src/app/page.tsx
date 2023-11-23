@@ -1,95 +1,57 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+import CountryForm from "./components/countryForm";
+import styles from "./page.module.css";
+import { parseStringPromise } from "xml2js";
+
+async function findCountry(data: FormData) {
+  "use server";
+  const title = data.get("title")?.valueOf();
+
+  const xmlPayload = `
+    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                      xmlns:gs="http://spring.io/guides/gs-producing-web-service">
+      <soapenv:Header/>
+      <soapenv:Body>
+        <gs:getCountryRequest>
+          <gs:name>${title}</gs:name>
+        </gs:getCountryRequest>
+      </soapenv:Body>
+    </soapenv:Envelope>
+  `;
+
+  const response = await fetch("http://localhost:8080/ws", {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/xml",
+    },
+    body: xmlPayload,
+  });
+  const country = await response.text();
+  const parsedData = await parseStringPromise(country);
+  const countryData = {
+    name: parsedData["SOAP-ENV:Envelope"]["SOAP-ENV:Body"][0][
+      "ns2:getCountryResponse"
+    ][0]["ns2:country"][0]["ns2:name"][0],
+    population: parseInt(
+      parsedData["SOAP-ENV:Envelope"]["SOAP-ENV:Body"][0][
+        "ns2:getCountryResponse"
+      ][0]["ns2:country"][0]["ns2:population"][0]
+    ),
+    capital:
+      parsedData["SOAP-ENV:Envelope"]["SOAP-ENV:Body"][0][
+        "ns2:getCountryResponse"
+      ][0]["ns2:country"][0]["ns2:capital"][0],
+    currency:
+      parsedData["SOAP-ENV:Envelope"]["SOAP-ENV:Body"][0][
+        "ns2:getCountryResponse"
+      ][0]["ns2:country"][0]["ns2:currency"][0],
+  };
+  return countryData;
+}
 
 export default function Home() {
   return (
     <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <CountryForm onSubmit={findCountry} />
     </main>
-  )
+  );
 }
